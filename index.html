@@ -185,7 +185,7 @@
 
             // Fit map to the route bounds
             map.fitBounds(routePolyline.getBounds());
-            updatePositionDisplay(routeCoordinates[0]); // This is the problematic line
+            updatePositionDisplay(routeCoordinates[0]);
         }
 
         function updatePositionDisplay(latlng) {
@@ -239,15 +239,29 @@
         document.getElementById('startSimulationBtn').addEventListener('click', startSimulation);
         document.getElementById('stopSimulationBtn').addEventListener('click', stopSimulation);
 
-        // Initial setup for the map and vessel
-        window.onload = initializeVessel; // Ensure map is initialized after window loads
-
         // --- Planned Maintenance System Module ---
         let maintenanceTasks = [];
         const maintenanceListDiv = document.getElementById('maintenanceList');
         const newTaskInput = document.getElementById('newTaskInput');
         const newTaskDueDate = document.getElementById('newTaskDueDate');
         const addTaskBtn = document.getElementById('addTaskBtn');
+
+        // Load tasks from Local Storage on startup
+        function loadMaintenanceTasks() {
+            const storedTasks = localStorage.getItem('yachtMaintenanceTasks');
+            if (storedTasks) {
+                maintenanceTasks = JSON.parse(storedTasks);
+                showMessage("Maintenance tasks loaded from local storage.", "info");
+            } else {
+                maintenanceTasks = [];
+            }
+            renderMaintenanceTasks();
+        }
+
+        // Save tasks to Local Storage
+        function saveMaintenanceTasks() {
+            localStorage.setItem('yachtMaintenanceTasks', JSON.stringify(maintenanceTasks));
+        }
 
         function renderMaintenanceTasks() {
             maintenanceListDiv.innerHTML = ''; // Clear existing list
@@ -293,32 +307,52 @@
                 id: Date.now(), // Simple unique ID
                 description: description,
                 dueDate: dueDate,
-                completed: false
+                completed: false,
+                createdAt: new Date().toISOString() // Add timestamp for ordering/tracking
             };
             maintenanceTasks.push(newTask);
+            saveMaintenanceTasks(); // Save to Local Storage
             renderMaintenanceTasks();
             newTaskInput.value = '';
             newTaskDueDate.value = '';
-            showMessage("Maintenance task added!");
+            showMessage("Maintenance task added and saved locally!");
         }
 
         function toggleTaskCompletion(id) {
             const taskIndex = maintenanceTasks.findIndex(task => task.id === id);
             if (taskIndex !== -1) {
                 maintenanceTasks[taskIndex].completed = !maintenanceTasks[taskIndex].completed;
+                saveMaintenanceTasks(); // Save to Local Storage
                 renderMaintenanceTasks();
-                showMessage(`Task "${maintenanceTasks[taskIndex].description}" marked as ${maintenanceTasks[taskIndex].completed ? 'completed' : 'incomplete'}.`);
+                showMessage(`Task "${maintenanceTasks[taskIndex].description}" status updated locally.`);
             }
         }
 
         addTaskBtn.addEventListener('click', addTask);
-        renderMaintenanceTasks(); // Initial render
+        loadMaintenanceTasks(); // Initial load and render
 
         // --- Crew Communication Module ---
         let chatMessages = [];
         const chatLogDiv = document.getElementById('chatLog');
         const chatInput = document.getElementById('chatInput');
         const sendMessageBtn = document.getElementById('sendMessageBtn');
+
+        // Load messages from Local Storage on startup
+        function loadChatMessages() {
+            const storedMessages = localStorage.getItem('yachtChatMessages');
+            if (storedMessages) {
+                chatMessages = JSON.parse(storedMessages);
+                showMessage("Chat messages loaded from local storage.", "info");
+            } else {
+                chatMessages = [];
+            }
+            renderChatMessages();
+        }
+
+        // Save messages to Local Storage
+        function saveChatMessages() {
+            localStorage.setItem('yachtChatMessages', JSON.stringify(chatMessages));
+        }
 
         function renderChatMessages() {
             chatLogDiv.innerHTML = ''; // Clear existing messages
@@ -352,8 +386,10 @@
                 timestamp: new Date().toISOString()
             };
             chatMessages.push(newMessage);
+            saveChatMessages(); // Save to Local Storage
             renderChatMessages();
             chatInput.value = '';
+            showMessage("Message sent and saved locally!");
 
             // Simulate a reply from the Captain after a short delay
             setTimeout(() => {
@@ -363,6 +399,7 @@
                     timestamp: new Date().toISOString()
                 };
                 chatMessages.push(captainReply);
+                saveChatMessages(); // Save captain's reply to Local Storage
                 renderChatMessages();
             }, 1500);
         }
@@ -373,37 +410,45 @@
                 sendMessage();
             }
         });
-        renderChatMessages(); // Initial render
+        loadChatMessages(); // Initial load and render
 
-        // --- Global Clear Data Functionality ---
+        // --- Global Clear Data Functionality (with Local Storage Clear) ---
         document.getElementById('clearAllDataBtn').addEventListener('click', () => {
-            // Stop simulation if running
-            stopSimulation();
+            // Confirm with user (using native confirm for simplicity in this demo)
+            const confirmation = confirm("Are you sure you want to clear ALL your saved data? This cannot be undone and will only affect this browser.");
 
-            // Clear maintenance tasks
-            maintenanceTasks = [];
-            renderMaintenanceTasks();
+            if (confirmation) {
+                stopSimulation();
 
-            // Clear chat messages
-            chatMessages = [];
-            renderChatMessages();
+                // Clear maintenance tasks from Local Storage
+                localStorage.removeItem('yachtMaintenanceTasks');
+                maintenanceTasks = [];
+                renderMaintenanceTasks();
 
-            // Reset vessel position and remove polyline
-            if (vesselMarker) {
-                map.removeLayer(vesselMarker);
-                vesselMarker = null;
+                // Clear chat messages from Local Storage
+                localStorage.removeItem('yachtChatMessages');
+                chatMessages = [];
+                renderChatMessages();
+
+                // Reset vessel position and remove polyline
+                if (vesselMarker) {
+                    map.removeLayer(vesselMarker);
+                    vesselMarker = null;
+                }
+                if (routePolyline) {
+                    map.removeLayer(routePolyline);
+                    routePolyline = null;
+                }
+                map.setView([34.0522, -118.2437], 10); // Reset map view
+                document.getElementById('currentPosition').textContent = 'Loading...'; // Reset position display
+                initializeVessel(); // Re-initialize vessel to its starting point
+
+                showMessage("All application data has been cleared from this browser's local storage!");
             }
-            if (routePolyline) {
-                map.removeLayer(routePolyline);
-                routePolyline = null;
-            }
-            map.setView([34.0522, -118.2437], 10); // Reset map view
-            document.getElementById('currentPosition').textContent = 'Loading...'; // Reset position display
-            initializeVessel(); // Re-initialize vessel to its starting point
-
-            showMessage("All application data has been cleared!");
         });
 
+        // Initial setup for the map and vessel
+        window.addEventListener('load', initializeVessel);
         showMessage("Welcome to your Yacht Management Dashboard!");
     </script>
 </body>
