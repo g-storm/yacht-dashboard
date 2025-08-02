@@ -48,11 +48,59 @@
         .scrollable-content::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
+
+        /* Modal specific styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black overlay */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* Ensure it's on top of other content */
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem; /* Rounded corners */
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.3);
+            max-width: 90%; /* Responsive width */
+            max-height: 90%; /* Responsive height */
+            overflow-y: auto; /* Enable scrolling for long content */
+            position: relative;
+        }
+        .modal-close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #4b5563; /* Gray color */
+            transition: color 0.2s ease-in-out;
+        }
+        .modal-close-btn:hover {
+            color: #1f2937; /* Darker gray on hover */
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4 font-sans">
     <div class="container mx-auto p-6 bg-white rounded-xl shadow-lg max-w-4xl">
-        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Luxury Yacht Management Dashboard</h1>
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">Luxury Yacht Management Dashboard</h1>
+        <!-- Personal Brand Name and Link -->
+        <p class="text-center text-gray-600 text-lg mb-4">
+            Created by <a href="https://gyllenstorm.net" target="_blank" class="text-blue-600 hover:underline font-semibold">Karl-Johan Gyllenstorm</a>
+        </p>
+        <!-- User Guide Button -->
+        <div class="text-center mb-8">
+            <button id="userGuideBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                User Guide
+            </button>
+        </div>
 
         <!-- Vessel Tracking Section -->
         <div class="mb-8 p-4 bg-blue-50 rounded-lg shadow-sm">
@@ -118,6 +166,55 @@
         </div>
     </div>
 
+    <!-- User Guide Modal -->
+    <div id="userGuideModal" class="modal-overlay hidden">
+        <div class="modal-content w-11/12 md:w-3/4 lg:w-1/2">
+            <button id="closeGuideBtn" class="modal-close-btn">&times;</button>
+            <h2 class="text-3xl font-bold text-gray-800 mb-4">Dashboard User Guide</h2>
+            <p class="text-gray-700 mb-6">Welcome to your personal Luxury Yacht Management Dashboard! Here's how to use its main features:</p>
+
+            <h3 class="text-2xl font-semibold text-blue-700 mb-3">1. Vessel Tracking</h3>
+            <p class="text-gray-700 mb-4">
+                This section gives you a simulated view of your yacht's location.
+                <ul class="list-disc list-inside ml-4 mt-2 text-gray-700">
+                    <li>Click **"Start Route Simulation"** to see your yacht move along a predefined route on the map. The "Current Position" will update in real-time.</li>
+                    <li>Click **"Stop Simulation"** to pause the yacht's movement at its current location.</li>
+                    <li>The map is centered on Monaco, a popular yachting destination.</li>
+                </ul>
+            </p>
+
+            <h3 class="text-2xl font-semibold text-green-700 mb-3">2. Planned Maintenance System</h3>
+            <p class="text-gray-700 mb-4">
+                Keep track of all your yacht's essential maintenance tasks.
+                <ul class="list-disc list-inside ml-4 mt-2 text-gray-700">
+                    <li>**Add a Task:** Enter a description (e.g., "Engine oil change") and select a due date, then click **"Add Task"**.</li>
+                    <li>**Mark as Complete:** Click the **"Complete"** button next to a task to mark it as done. The task will be crossed out. Click it again to revert its status.</li>
+                    <li>**Data Saving:** All your maintenance tasks are saved directly in your browser's local storage, so they'll be there when you revisit the dashboard on the same device.</li>
+                </ul>
+            </p>
+
+            <h3 class="text-2xl font-semibold text-purple-700 mb-3">3. Crew Communication</h3>
+            <p class="text-gray-700 mb-4">
+                A simple chat interface to simulate communication between you (the Owner) and your Captain.
+                <ul class="list-disc list-inside ml-4 mt-2 text-gray-700">
+                    <li>**Send a Message:** Type your message in the input field and press **Enter** or click **"Send"**.</li>
+                    <li>**Simulated Reply:** The "Captain" will automatically send a brief acknowledgment after a short delay.</li>
+                    <li>**Data Saving:** Your chat history is also saved in your browser's local storage.</li>
+                </ul>
+            </p>
+
+            <h3 class="text-2xl font-semibold text-red-700 mb-3">Global Controls</h3>
+            <p class="text-gray-700 mb-4">
+                At the bottom of the dashboard:
+                <ul class="list-disc list-inside ml-4 mt-2 text-gray-700">
+                    <li>**"Clear All Data"**: This button will **permanently delete all saved maintenance tasks and chat messages** from your browser's local storage. It will also reset the map simulation. Use with caution!</li>
+                </ul>
+            </p>
+
+            <p class="text-gray-700 mt-6">Enjoy managing your luxury yacht!</p>
+        </div>
+    </div>
+
     <!-- Leaflet JavaScript -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
@@ -138,7 +235,8 @@
         }
 
         // --- Vessel Tracking Module ---
-        const map = L.map('map').setView([34.0522, -118.2437], 10); // Centered near Los Angeles
+        // Changed map center to Monaco coordinates
+        const map = L.map('map').setView([43.7384, 7.4246], 13); // Centered near Monaco with a closer zoom
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -146,12 +244,11 @@
 
         // Sample route coordinates (e.g., cruising along the California coast)
         const routeCoordinates = [
-            [33.7537, -118.1938], // Long Beach
-            [33.7297, -118.2827], // San Pedro
-            [33.8000, -118.3500], // Palos Verdes
-            [33.9500, -118.4000], // Santa Monica Bay
-            [34.0000, -119.0000], // Towards Channel Islands
-            [34.0150, -119.2040]  // Anacapa Island
+            [43.7300, 7.4200], // Near Port Hercule, Monaco
+            [43.7450, 7.4350], // Towards Cap Martin
+            [43.7550, 7.4600], // Further along the coast
+            [43.7250, 7.4000], // Back towards Nice direction
+            [43.7150, 7.3800]   // Near Eze-sur-Mer
         ];
 
         let vesselMarker = null;
@@ -439,13 +536,35 @@
                     map.removeLayer(routePolyline);
                     routePolyline = null;
                 }
-                map.setView([34.0522, -118.2437], 10); // Reset map view
+                // Reset map view to Monaco
+                map.setView([43.7384, 7.4246], 13);
                 document.getElementById('currentPosition').textContent = 'Loading...'; // Reset position display
                 initializeVessel(); // Re-initialize vessel to its starting point
 
                 showMessage("All application data has been cleared from this browser's local storage!");
             }
         });
+
+        // --- User Guide Modal Logic ---
+        const userGuideBtn = document.getElementById('userGuideBtn');
+        const userGuideModal = document.getElementById('userGuideModal');
+        const closeGuideBtn = document.getElementById('closeGuideBtn');
+
+        userGuideBtn.addEventListener('click', () => {
+            userGuideModal.classList.remove('hidden'); // Show the modal
+        });
+
+        closeGuideBtn.addEventListener('click', () => {
+            userGuideModal.classList.add('hidden'); // Hide the modal
+        });
+
+        // Close modal if clicking outside the content (but not on the content itself)
+        userGuideModal.addEventListener('click', (event) => {
+            if (event.target === userGuideModal) {
+                userGuideModal.classList.add('hidden');
+            }
+        });
+
 
         // Initial setup for the map and vessel
         window.addEventListener('load', initializeVessel);
