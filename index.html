@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxury Yacht Management Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS for the map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <style>
+        /* Custom CSS for the map container */
+        #map {
+            height: 400px; /* Fixed height for the map */
+            width: 100%; /* Full width */
+            border-radius: 0.5rem; /* Rounded corners */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+            margin-bottom: 1.5rem; /* Spacing below the map */
+        }
+        /* Style for completed maintenance tasks */
+        .completed-task {
+            text-decoration: line-through;
+            color: #6b7280; /* Gray out completed tasks */
+        }
+        /* Scrollable chat and maintenance logs */
+        .scrollable-content {
+            max-height: 250px; /* Max height for scrollable areas */
+            overflow-y: auto; /* Enable vertical scrolling */
+            border: 1px solid #e5e7eb; /* Light gray border */
+            border-radius: 0.5rem; /* Rounded corners */
+            padding: 1rem; /* Padding inside */
+            background-color: #f9fafb; /* Slightly different background */
+        }
+        /* Custom scrollbar for better aesthetics */
+        .scrollable-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        .scrollable-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .scrollable-content::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .scrollable-content::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4 font-sans">
+    <div class="container mx-auto p-6 bg-white rounded-xl shadow-lg max-w-4xl">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Luxury Yacht Management Dashboard</h1>
+
+        <!-- Vessel Tracking Section -->
+        <div class="mb-8 p-4 bg-blue-50 rounded-lg shadow-sm">
+            <h2 class="text-2xl font-semibold text-blue-800 mb-4">Vessel Tracking</h2>
+            <div id="map"></div>
+            <div class="text-center text-gray-700 font-medium mb-4">
+                Current Position: <span id="currentPosition">Loading...</span>
+            </div>
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <button id="startSimulationBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                    Start Route Simulation
+                </button>
+                <button id="stopSimulationBtn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                    Stop Simulation
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Maintenance Management Section -->
+            <div class="p-4 bg-green-50 rounded-lg shadow-sm">
+                <h2 class="text-2xl font-semibold text-green-800 mb-4">Planned Maintenance System</h2>
+                <div class="mb-4">
+                    <input type="text" id="newTaskInput" placeholder="Enter new task description"
+                           class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 mb-2">
+                    <input type="date" id="newTaskDueDate"
+                           class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 mb-2">
+                    <button id="addTaskBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                        Add Task
+                    </button>
+                </div>
+                <div id="maintenanceList" class="scrollable-content">
+                    <p class="text-gray-500 text-sm">No tasks added yet.</p>
+                </div>
+            </div>
+
+            <!-- Crew Communication Section -->
+            <div class="p-4 bg-purple-50 rounded-lg shadow-sm">
+                <h2 class="text-2xl font-semibold text-purple-800 mb-4">Crew Communication</h2>
+                <div id="chatLog" class="scrollable-content mb-4">
+                    <p class="text-gray-500 text-sm">No messages yet.</p>
+                </div>
+                <div class="flex">
+                    <input type="text" id="chatInput" placeholder="Type your message..."
+                           class="flex-grow p-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <button id="sendMessageBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-r-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                        Send
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Controls -->
+        <div class="mt-8 text-center">
+            <button id="clearAllDataBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                Clear All Data
+            </button>
+        </div>
+
+        <!-- Message Box for user feedback -->
+        <div id="messageBox" class="mt-6 p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-lg hidden">
+            <!-- Messages will appear here -->
+        </div>
+    </div>
+
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+
+    <script>
+        // --- Global Variables and Utility Functions ---
+        const messageBox = document.getElementById('messageBox');
+
+        // Function to display messages in the message box
+        function showMessage(message, type = 'info') {
+            messageBox.textContent = message;
+            messageBox.className = `mt-6 p-4 rounded-lg ${type === 'error' ? 'bg-red-100 border-red-400 text-red-700' : 'bg-yellow-100 border-yellow-400 text-yellow-700'}`;
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 5000); // Hide after 5 seconds
+        }
+
+        // --- Vessel Tracking Module ---
+        const map = L.map('map').setView([34.0522, -118.2437], 10); // Centered near Los Angeles
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Sample route coordinates (e.g., cruising along the California coast)
+        const routeCoordinates = [
+            [33.7537, -118.1938], // Long Beach
+            [33.7297, -118.2827], // San Pedro
+            [33.8000, -118.3500], // Palos Verdes
+            [33.9500, -118.4000], // Santa Monica Bay
+            [34.0000, -119.0000], // Towards Channel Islands
+            [34.0150, -119.2040]  // Anacapa Island
+        ];
+
+        let vesselMarker = null;
+        let routePolyline = null;
+        let simulationInterval = null;
+        let currentRouteIndex = 0;
+
+        // Custom icon for the vessel
+        const vesselIcon = L.icon({
+            iconUrl: 'https://placehold.co/32x32/007bff/ffffff?text=⛵', // Placeholder for a boat icon
+            iconSize: [32, 32],
+            iconAnchor: [16, 16], // Point of the icon which will correspond to marker's location
+            popupAnchor: [0, -16] // Point from which the popup should open relative to the iconAnchor
+        });
+
+        function initializeVessel() {
+            if (vesselMarker) {
+                map.removeLayer(vesselMarker);
+            }
+            if (routePolyline) {
+                map.removeLayer(routePolyline);
+            }
+
+            // Add the vessel marker at the start of the route
+            vesselMarker = L.marker(routeCoordinates[0], { icon: vesselIcon }).addTo(map)
+                .bindPopup("<b>Luxury Yacht</b><br>Currently cruising.")
+                .openPopup();
+
+            // Draw the full route as a polyline
+            routePolyline = L.polyline(routeCoordinates, { color: 'blue', weight: 4, opacity: 0.7 }).addTo(map);
+
+            // Fit map to the route bounds
+            map.fitBounds(routePolyline.getBounds());
+            updatePositionDisplay(routeCoordinates[0]); // This is the problematic line
+        }
+
+        function updatePositionDisplay(latlng) {
+            let lat, lng;
+            if (latlng && typeof latlng.lat !== 'undefined' && typeof latlng.lng !== 'undefined') {
+                // It's a Leaflet LatLng object
+                lat = latlng.lat;
+                lng = latlng.lng;
+            } else if (Array.isArray(latlng) && latlng.length === 2) {
+                // It's a plain [lat, lng] array
+                lat = latlng[0];
+                lng = latlng[1];
+            } else {
+                // Fallback for unexpected format
+                console.error("Invalid latitude/longitude format received:", latlng);
+                document.getElementById('currentPosition').textContent = `Invalid Position`;
+                return;
+            }
+            document.getElementById('currentPosition').textContent = `Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`;
+        }
+
+        function startSimulation() {
+            if (simulationInterval) {
+                showMessage("Simulation is already running.", "error");
+                return;
+            }
+            showMessage("Starting vessel simulation...");
+            currentRouteIndex = 0;
+            initializeVessel(); // Reset vessel to start of route
+
+            simulationInterval = setInterval(() => {
+                currentRouteIndex++;
+                if (currentRouteIndex < routeCoordinates.length) {
+                    const nextLatLng = routeCoordinates[currentRouteIndex];
+                    vesselMarker.setLatLng(nextLatLng);
+                    map.panTo(nextLatLng); // Keep the vessel in view
+                    updatePositionDisplay(nextLatLng);
+                } else {
+                    stopSimulation();
+                    showMessage("Simulation complete. Vessel reached destination.", "info");
+                }
+            }, 2000); // Update every 2 seconds
+        }
+
+        function stopSimulation() {
+            clearInterval(simulationInterval);
+            simulationInterval = null;
+            showMessage("Vessel simulation stopped.");
+        }
+
+        document.getElementById('startSimulationBtn').addEventListener('click', startSimulation);
+        document.getElementById('stopSimulationBtn').addEventListener('click', stopSimulation);
+
+        // Initial setup for the map and vessel
+        window.onload = initializeVessel; // Ensure map is initialized after window loads
+
+        // --- Planned Maintenance System Module ---
+        let maintenanceTasks = [];
+        const maintenanceListDiv = document.getElementById('maintenanceList');
+        const newTaskInput = document.getElementById('newTaskInput');
+        const newTaskDueDate = document.getElementById('newTaskDueDate');
+        const addTaskBtn = document.getElementById('addTaskBtn');
+
+        function renderMaintenanceTasks() {
+            maintenanceListDiv.innerHTML = ''; // Clear existing list
+            if (maintenanceTasks.length === 0) {
+                maintenanceListDiv.innerHTML = '<p class="text-gray-500 text-sm">No tasks added yet.</p>';
+                return;
+            }
+
+            maintenanceTasks.forEach(task => {
+                const taskItem = document.createElement('div');
+                taskItem.className = `flex items-center justify-between p-2 mb-2 bg-white rounded-md shadow-sm ${task.completed ? 'completed-task' : ''}`;
+                taskItem.innerHTML = `
+                    <div>
+                        <p class="font-medium">${task.description}</p>
+                        <p class="text-sm text-gray-600">Due: ${task.dueDate}</p>
+                    </div>
+                    <button data-id="${task.id}" class="toggle-complete-btn bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm py-1 px-3 rounded-md transition duration-200">
+                        ${task.completed ? 'Undo' : 'Complete'}
+                    </button>
+                `;
+                maintenanceListDiv.appendChild(taskItem);
+            });
+
+            // Add event listeners to new complete buttons
+            document.querySelectorAll('.toggle-complete-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const taskId = parseInt(event.target.dataset.id);
+                    toggleTaskCompletion(taskId);
+                });
+            });
+        }
+
+        function addTask() {
+            const description = newTaskInput.value.trim();
+            const dueDate = newTaskDueDate.value;
+
+            if (!description || !dueDate) {
+                showMessage("Please enter both task description and due date.", "error");
+                return;
+            }
+
+            const newTask = {
+                id: Date.now(), // Simple unique ID
+                description: description,
+                dueDate: dueDate,
+                completed: false
+            };
+            maintenanceTasks.push(newTask);
+            renderMaintenanceTasks();
+            newTaskInput.value = '';
+            newTaskDueDate.value = '';
+            showMessage("Maintenance task added!");
+        }
+
+        function toggleTaskCompletion(id) {
+            const taskIndex = maintenanceTasks.findIndex(task => task.id === id);
+            if (taskIndex !== -1) {
+                maintenanceTasks[taskIndex].completed = !maintenanceTasks[taskIndex].completed;
+                renderMaintenanceTasks();
+                showMessage(`Task "${maintenanceTasks[taskIndex].description}" marked as ${maintenanceTasks[taskIndex].completed ? 'completed' : 'incomplete'}.`);
+            }
+        }
+
+        addTaskBtn.addEventListener('click', addTask);
+        renderMaintenanceTasks(); // Initial render
+
+        // --- Crew Communication Module ---
+        let chatMessages = [];
+        const chatLogDiv = document.getElementById('chatLog');
+        const chatInput = document.getElementById('chatInput');
+        const sendMessageBtn = document.getElementById('sendMessageBtn');
+
+        function renderChatMessages() {
+            chatLogDiv.innerHTML = ''; // Clear existing messages
+            if (chatMessages.length === 0) {
+                chatLogDiv.innerHTML = '<p class="text-gray-500 text-sm">No messages yet.</p>';
+                return;
+            }
+
+            chatMessages.forEach(msg => {
+                const msgElement = document.createElement('div');
+                msgElement.className = `p-2 mb-1 rounded-md ${msg.sender === 'Owner' ? 'bg-blue-100 self-end text-right' : 'bg-gray-200 self-start text-left'}`;
+                msgElement.innerHTML = `
+                    <p class="font-semibold text-sm">${msg.sender} <span class="text-gray-500 text-xs">${new Date(msg.timestamp).toLocaleTimeString()}</span></p>
+                    <p>${msg.text}</p>
+                `;
+                chatLogDiv.appendChild(msgElement);
+            });
+            chatLogDiv.scrollTop = chatLogDiv.scrollHeight; // Scroll to bottom
+        }
+
+        function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text) {
+                showMessage("Please enter a message.", "error");
+                return;
+            }
+
+            const newMessage = {
+                sender: 'Owner', // Assuming the user is the owner
+                text: text,
+                timestamp: new Date().toISOString()
+            };
+            chatMessages.push(newMessage);
+            renderChatMessages();
+            chatInput.value = '';
+
+            // Simulate a reply from the Captain after a short delay
+            setTimeout(() => {
+                const captainReply = {
+                    sender: 'Captain',
+                    text: `Acknowledged: "${text}". Will follow up.`,
+                    timestamp: new Date().toISOString()
+                };
+                chatMessages.push(captainReply);
+                renderChatMessages();
+            }, 1500);
+        }
+
+        sendMessageBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        renderChatMessages(); // Initial render
+
+        // --- Global Clear Data Functionality ---
+        document.getElementById('clearAllDataBtn').addEventListener('click', () => {
+            // Stop simulation if running
+            stopSimulation();
+
+            // Clear maintenance tasks
+            maintenanceTasks = [];
+            renderMaintenanceTasks();
+
+            // Clear chat messages
+            chatMessages = [];
+            renderChatMessages();
+
+            // Reset vessel position and remove polyline
+            if (vesselMarker) {
+                map.removeLayer(vesselMarker);
+                vesselMarker = null;
+            }
+            if (routePolyline) {
+                map.removeLayer(routePolyline);
+                routePolyline = null;
+            }
+            map.setView([34.0522, -118.2437], 10); // Reset map view
+            document.getElementById('currentPosition').textContent = 'Loading...'; // Reset position display
+            initializeVessel(); // Re-initialize vessel to its starting point
+
+            showMessage("All application data has been cleared!");
+        });
+
+        showMessage("Welcome to your Yacht Management Dashboard!");
+    </script>
+</body>
+</html>
